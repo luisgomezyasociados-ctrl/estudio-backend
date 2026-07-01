@@ -1,0 +1,20 @@
+{
+  "name": "estudio-backend",
+  "version": "1.0.0",
+  "description": "Backend automático: triage de Gmail, resúmenes de Fathom y API para el dashboard del estudio contable.",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "node-cron": "^3.0.3",
+    "googleapis": "^140.0.1",
+    "airtable": "^0.12.2",
+    "@anthropic-ai/sdk": "^0.27.0",
+    "node-fetch": "^2.7.0",
+    "dotenv": "^16.4.5",
+    "cors": "^2.8.5"
+  }
+}
