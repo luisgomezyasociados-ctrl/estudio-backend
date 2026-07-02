@@ -1,16 +1,26 @@
-const { google } = require('googleapis');
+// Reemplazamos googleapis por fetch directo: la librería googleapis
+// tiene un problema de compatibilidad con Node 22 en este entorno
+// (error "Premature close" al renovar el token).
 
-function getOAuthClient() {
-  const oAuth2Client = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET
-  );
-  oAuth2Client.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
-  return oAuth2Client;
+async function getAccessToken() {
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: process.env.GOOGLE_CLIENT_ID,
+      client_secret: process.env.GOOGLE_CLIENT_SECRET,
+      refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
+      grant_type: 'refresh_token',
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(`Error al renovar token de Google: ${JSON.stringify(data)}`);
+  }
+  return data.access_token;
 }
 
 function decodeBody(payload) {
-  // Busca la parte de texto plano; si no hay, usa el snippet.
   function findPart(part) {
     if (!part) return null;
     if (part.mimeType === 'text/plain' && part.body?.data) return part.body.data;
@@ -31,34 +41,39 @@ function decodeBody(payload) {
  * Devuelve los emails recientes de la bandeja (según GMAIL_QUERY, default: último día).
  */
 async function getRecentEmails() {
-  const auth = getOAuthClient();
-  const gmail = google.gmail({ version: 'v1', auth });
+  const accessToken = await getAccessToken();
+  const headers = { Authorization: `Bearer ${accessToken}` };
 
-  const list = await gmail.users.messages.list({
-    userId: 'me',
-    q: process.env.GMAIL_QUERY || 'newer_than:1d',
-    maxResults: 25,
-  });
+  const query = process.env.GMAIL_QUERY || 'newer_than:1d';
+  const listUrl = `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=25`;
+  const listRes = await fetch(listUrl, { headers });
+  const listData = await listRes.json();
+  if (!listRes.ok) {
+    throw new Error(`Error al listar emails: ${JSON.stringify(listData)}`);
+  }
 
-  const messages = list.data.messages || [];
+  const messages = listData.messages || [];
   const results = [];
 
   for (const m of messages) {
-    const full = await gmail.users.messages.get({
-      userId: 'me',
-      id: m.id,
-      format: 'full',
-    });
-    const headers = full.data.payload.headers || [];
-    const getHeader = (name) => headers.find((h) => h.name.toLowerCase() === name.toLowerCase())?.value || '';
+    const msgUrl = `https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=full`;
+    const msgRes = await fetch(msgUrl, { headers });
+    const full = await msgRes.json();
+    if (!msgRes.ok) {
+      throw new Error(`Error al obtener email ${m.id}: ${JSON.stringify(full)}`);
+    }
+
+    const msgHeaders = full.payload.headers || [];
+    const getHeader = (name) =>
+      msgHeaders.find((h) => h.name.toLowerCase() === name.toLowerCase())?.value || '';
 
     results.push({
-      threadId: full.data.threadId,
+      threadId: full.threadId,
       from: getHeader('From'),
       subject: getHeader('Subject'),
-      snippet: full.data.snippet,
-      body: decodeBody(full.data.payload) || full.data.snippet,
-      receivedAt: new Date(parseInt(full.data.internalDate, 10)).toISOString(),
+      snippet: full.snippet,
+      body: decodeBody(full.payload) || full.snippet,
+      receivedAt: new Date(parseInt(full.internalDate, 10)).toISOString(),
     });
   }
 
