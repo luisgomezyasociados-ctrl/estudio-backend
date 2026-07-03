@@ -94,11 +94,12 @@ async function listClients() {
     const f = r.fields;
     return {
       id: r.id,
-      Name: pick(f, 'Nombre', 'Name', 'Cliente'),
-      Category: pick(f, 'Categoría', 'Categoria', 'Category'),
+      Name: pick(f, 'Clientes por Colaborador', 'Nombre', 'Name', 'Cliente'),
+      Category: pick(f, 'Colaborador', 'Categoría', 'Categoria', 'Category'),
       LastContact: pick(f, 'Último contacto', 'Ultimo contacto', 'LastContact'),
       Status: normalizeStatus(pick(f, 'Estado', 'Status')),
       CUIT: pick(f, 'CUIT', 'Cuit'),
+      Email: pick(f, 'Email', 'Correo', 'Mail'),
     };
   });
 }
@@ -115,4 +116,4 @@ module.exports = {
   listRecentMeetings,
   listClients,
   listTeam,
-};
+}; 
