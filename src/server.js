@@ -75,8 +75,19 @@ async function pollAll() {
   await pollMeetings();
 }
 
-// ── Cron: corre solo, cada POLL_CRON (default cada 15 min) ─────
-cron.schedule(process.env.POLL_CRON || '*/15 * * * *', pollAll);
+// ── Cron DESACTIVADO ─────────────────────────────────────────────
+// El triage de emails y el registro de reuniones de Fathom ahora los
+// hacen los workflows de n8n (escriben directo a las mismas tablas de
+// Airtable: "Emails" y "Meeting"). Este cron quedó duplicando esa lógica
+// con un esquema de campos distinto (ThreadId/Tag/AISummary vs. el real
+// Gmail Message ID/Urgencia/Notes), y apuntaba a "Meetings" en plural
+// (la tabla real es "Meeting"). Nunca llegó a escribir nada porque el
+// token de Google y la key de Fathom vencieron, pero si alguien los
+// renueva sin saber esto, empezaría a crear registros duplicados.
+// Si en algún momento se decide volver a esta arquitectura en vez de
+// n8n, descomentar la línea de abajo y actualizar src/airtable.js para
+// que use los nombres de campo reales.
+// cron.schedule(process.env.POLL_CRON || '*/15 * * * *', pollAll);
 
 // ── Endpoints ─────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ ok: true }));
@@ -108,3 +119,4 @@ app.listen(PORT, () => {
   console.log(`Servidor del estudio corriendo en puerto ${PORT}`);
   console.log(`Cron de polling: ${process.env.POLL_CRON || '*/15 * * * *'}`);
 });
+
