@@ -8,6 +8,7 @@ const T_EMAILS = process.env.AIRTABLE_TABLE_EMAILS || 'Emails';
 const T_MEETINGS = process.env.AIRTABLE_TABLE_MEETINGS || 'Meetings';
 const T_CLIENTS = process.env.AIRTABLE_TABLE_CLIENTS || 'GO Estudio Clientes Consolidados';
 const T_TEAM = process.env.AIRTABLE_TABLE_TEAM || 'Team';
+const T_RENDICIONES = process.env.AIRTABLE_TABLE_RENDICIONES || 'Rendiciones';
 
 // ---- helpers genéricos ----
 async function findByField(table, field, value) {
@@ -110,6 +111,36 @@ async function listTeam() {
   return records.map((r) => ({ id: r.id, ...r.fields }));
 }
 
+// ---- Rendiciones (las crea el workflow de n8n que lee adjuntos de email) ----
+async function listRendiciones(limit = 30) {
+  const [records, clientRecords] = await Promise.all([
+    base(T_RENDICIONES).select({ sort: [{ field: 'Fecha', direction: 'desc' }], maxRecords: limit }).firstPage(),
+    base(T_CLIENTS).select({}).all(),
+  ]);
+
+  const clientMap = {};
+  clientRecords.forEach((c) => {
+    clientMap[c.id] = pick(c.fields, 'Clientes por Colaborador', 'Nombre', 'Name', 'Cliente');
+  });
+
+  return records.map((r) => {
+    const f = r.fields;
+    const clienteIds = f['Cliente'] || [];
+    return {
+      id: r.id,
+      Name: f['Name'] || '',
+      ClienteName: clienteIds.map((id) => clientMap[id]).filter(Boolean).join(', '),
+      TipoDocumento: f['Tipo de documento'] || '',
+      Monto: f['Monto declarado'] != null ? f['Monto declarado'] : null,
+      Fecha: f['Fecha'] || '',
+      HonorarioEsperado: f['Honorario esperado'] != null ? f['Honorario esperado'] : null,
+      Diferencia: f['Diferencia'] != null ? f['Diferencia'] : 0,
+      Estado: f['Estado'] || '',
+      Resumen: f['Resumen IA'] || '',
+    };
+  });
+}
+
 module.exports = {
   upsertEmail,
   listRecentEmails,
@@ -117,4 +148,5 @@ module.exports = {
   listRecentMeetings,
   listClients,
   listTeam,
+  listRendiciones,
 };
