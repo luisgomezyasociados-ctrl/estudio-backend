@@ -101,13 +101,14 @@ app.post('/api/run-now', checkApiKey, async (req, res) => {
 // Lo que consume el dashboard.html
 app.get('/api/dashboard', checkApiKey, async (req, res) => {
   try {
-    const [emails, meetings, clients, team] = await Promise.all([
+    const [emails, meetings, clients, team, rendiciones] = await Promise.all([
       airtable.listRecentEmails(20),
       airtable.listRecentMeetings(20),
       airtable.listClients(),
       airtable.listTeam(),
+      airtable.listRendiciones(30),
     ]);
-    res.json({ emails, meetings, clients, team, updatedAt: new Date().toISOString() });
+    res.json({ emails, meetings, clients, team, rendiciones, updatedAt: new Date().toISOString() });
   } catch (err) {
     console.error('error en /api/dashboard:', err.message);
     res.status(500).json({ error: 'internal_error' });
@@ -119,4 +120,3 @@ app.listen(PORT, () => {
   console.log(`Servidor del estudio corriendo en puerto ${PORT}`);
   console.log(`Cron de polling: ${process.env.POLL_CRON || '*/15 * * * *'}`);
 });
-
