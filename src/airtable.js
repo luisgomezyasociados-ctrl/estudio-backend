@@ -100,6 +100,7 @@ async function listClients() {
       Status: normalizeStatus(pick(f, 'Estado', 'Status')),
       CUIT: pick(f, 'CUIT', 'Cuit'),
       Email: pick(f, 'Email', 'Correo', 'Mail'),
+      Phone: pick(f, 'Celular', 'Teléfono', 'Telefono', 'Phone'),
     };
   });
 }
@@ -116,4 +117,4 @@ module.exports = {
   listRecentMeetings,
   listClients,
   listTeam,
-}; 
+};
