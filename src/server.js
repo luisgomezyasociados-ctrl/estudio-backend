@@ -2,17 +2,20 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const cron = require('node-cron');
+const multer = require('multer');
 
 const gmail = require('./gmail');
 const fathom = require('./fathom');
 const { classifyEmail, classifyMeeting } = require('./classify');
 const airtable = require('./airtable');
+const { uploadAttachment } = require('./extractos');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ── Seguridad simple para la API que lee el dashboard ──────────
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
+
 function checkApiKey(req, res, next) {
   const key = req.header('x-api-key');
   if (!process.env.DASHBOARD_API_KEY || key !== process.env.DASHBOARD_API_KEY) {
@@ -21,7 +24,6 @@ function checkApiKey(req, res, next) {
   next();
 }
 
-// ── Job: revisar emails nuevos y clasificarlos ──────────────────
 async function pollEmails() {
   console.log('[cron] revisando emails nuevos...');
   try {
@@ -45,7 +47,6 @@ async function pollEmails() {
   }
 }
 
-// ── Job: revisar reuniones nuevas de Fathom y clasificarlas ─────
 async function pollMeetings() {
   console.log('[cron] revisando reuniones nuevas...');
   try {
@@ -75,43 +76,53 @@ async function pollAll() {
   await pollMeetings();
 }
 
-// ── Cron DESACTIVADO ─────────────────────────────────────────────
-// El triage de emails y el registro de reuniones de Fathom ahora los
-// hacen los workflows de n8n (escriben directo a las mismas tablas de
-// Airtable: "Emails" y "Meeting"). Este cron quedó duplicando esa lógica
-// con un esquema de campos distinto (ThreadId/Tag/AISummary vs. el real
-// Gmail Message ID/Urgencia/Notes), y apuntaba a "Meetings" en plural
-// (la tabla real es "Meeting"). Nunca llegó a escribir nada porque el
-// token de Google y la key de Fathom vencieron, pero si alguien los
-// renueva sin saber esto, empezaría a crear registros duplicados.
-// Si en algún momento se decide volver a esta arquitectura en vez de
-// n8n, descomentar la línea de abajo y actualizar src/airtable.js para
-// que use los nombres de campo reales.
 // cron.schedule(process.env.POLL_CRON || '*/15 * * * *', pollAll);
 
-// ── Endpoints ─────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ ok: true }));
 
-// Dispara un ciclo manual (útil para probar sin esperar el cron)
 app.post('/api/run-now', checkApiKey, async (req, res) => {
   await pollAll();
   res.json({ ok: true });
 });
 
-// Lo que consume el dashboard.html
 app.get('/api/dashboard', checkApiKey, async (req, res) => {
   try {
-    const [emails, meetings, clients, team, rendiciones] = await Promise.all([
+    const [emails, meetings, clients, team, rendiciones, extractos] = await Promise.all([
       airtable.listRecentEmails(20),
       airtable.listRecentMeetings(20),
       airtable.listClients(),
       airtable.listTeam(),
       airtable.listRendiciones(30),
+      airtable.listExtractos(20),
     ]);
-    res.json({ emails, meetings, clients, team, rendiciones, updatedAt: new Date().toISOString() });
+    res.json({ emails, meetings, clients, team, rendiciones, extractos, updatedAt: new Date().toISOString() });
   } catch (err) {
     console.error('error en /api/dashboard:', err.message);
     res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+app.post('/api/upload-extracto', checkApiKey, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'no_file' });
+
+    const { titular, notas } = req.body;
+    const recordId = await airtable.createExtractoRecord({ titular, notas });
+
+    await uploadAttachment({
+      baseId: process.env.AIRTABLE_BASE_ID,
+      apiKey: process.env.AIRTABLE_API_KEY,
+      recordId,
+      fieldName: 'Archivo',
+      fileBuffer: req.file.buffer,
+      filename: req.file.originalname,
+      contentType: req.file.mimetype,
+    });
+
+    res.json({ ok: true, recordId });
+  } catch (err) {
+    console.error('error en /api/upload-extracto:', err.message);
+    res.status(500).json({ error: 'upload_failed', message: err.message });
   }
 });
 
