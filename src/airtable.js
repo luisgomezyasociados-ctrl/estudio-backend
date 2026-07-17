@@ -9,6 +9,7 @@ const T_MEETINGS = process.env.AIRTABLE_TABLE_MEETINGS || 'Meetings';
 const T_CLIENTS = process.env.AIRTABLE_TABLE_CLIENTS || 'GO Estudio Clientes Consolidados';
 const T_TEAM = process.env.AIRTABLE_TABLE_TEAM || 'Team';
 const T_RENDICIONES = process.env.AIRTABLE_TABLE_RENDICIONES || 'Rendiciones';
+const T_EXTRACTOS = process.env.AIRTABLE_TABLE_EXTRACTOS || 'Extractos';
 
 // ---- helpers genéricos ----
 async function findByField(table, field, value) {
@@ -141,6 +142,42 @@ async function listRendiciones(limit = 30) {
   });
 }
 
+// ---- Extractos (los sube Luis desde el dashboard) ----
+
+// Crea el registro (sin archivo todavía) y devuelve el id, para que el
+// archivo se suba después con la API de contenido de Airtable (ver
+// src/extractos.js — necesita un recordId ya existente).
+async function createExtractoRecord({ titular, notas }) {
+  const fields = {
+    'Fecha de carga': new Date().toISOString(),
+    Procesado: false,
+  };
+  if (titular) fields['Titular de la cuenta'] = titular;
+  if (notas) fields['Notas'] = notas;
+  const created = await base(T_EXTRACTOS).create(fields);
+  return created.id;
+}
+
+async function listExtractos(limit = 20) {
+  const records = await base(T_EXTRACTOS)
+    .select({ sort: [{ field: 'Fecha de carga', direction: 'desc' }], maxRecords: limit })
+    .firstPage();
+  return records.map((r) => {
+    const f = r.fields;
+    const archivo = (f['Archivo'] || [])[0];
+    return {
+      id: r.id,
+      Titular: f['Titular de la cuenta'] || '',
+      FechaCarga: f['Fecha de carga'] || '',
+      Procesado: !!f['Procesado'],
+      Notas: f['Notas'] || '',
+      Resultado: f['Resultado'] || '',
+      ArchivoNombre: archivo ? archivo.filename : '',
+      ArchivoUrl: archivo ? archivo.url : '',
+    };
+  });
+}
+
 module.exports = {
   upsertEmail,
   listRecentEmails,
@@ -149,4 +186,6 @@ module.exports = {
   listClients,
   listTeam,
   listRendiciones,
+  createExtractoRecord,
+  listExtractos,
 };
