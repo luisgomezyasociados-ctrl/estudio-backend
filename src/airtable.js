@@ -7,7 +7,6 @@ const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(
 const T_EMAILS = process.env.AIRTABLE_TABLE_EMAILS || 'Emails';
 const T_MEETINGS = process.env.AIRTABLE_TABLE_MEETINGS || 'Meetings';
 const T_CLIENTS = process.env.AIRTABLE_TABLE_CLIENTS || 'GO Estudio Clientes Consolidados';
-const T_TEAM = process.env.AIRTABLE_TABLE_TEAM || 'Team';
 const T_RENDICIONES = process.env.AIRTABLE_TABLE_RENDICIONES || 'Rendiciones';
 const T_EXTRACTOS = process.env.AIRTABLE_TABLE_EXTRACTOS || 'Extractos';
 
@@ -67,7 +66,7 @@ async function listRecentMeetings(limit = 20) {
   return records.map((r) => ({ id: r.id, ...r.fields }));
 }
 
-// ---- Clients / Team (lectura simple, se cargan/editan a mano en Airtable) ----
+// ---- Clients (lectura simple, se cargan/editan a mano en Airtable) ----
 
 function normalizeStatus(raw) {
   const v = (raw || '').toString().trim().toLowerCase();
@@ -97,59 +96,6 @@ async function listClients() {
       CUIT: pick(f, 'CUIT', 'Cuit'),
       Email: pick(f, 'Email', 'Correo', 'Mail'),
       Phone: pick(f, 'Celular', 'Teléfono', 'Telefono', 'Phone'),
-    };
-  });
-}
-
-// La tabla "Team" está vacía y no se carga a mano, así que la lista de
-// colaboradores sale directo del campo "Colaborador" de Clientes (esa sí
-// tiene datos reales) en vez de depender de que alguien la mantenga. El
-// workflow de n8n que clasifica emails resuelve ese mismo "Colaborador" a
-// partir del cliente asociado y lo graba en cada registro de Emails, así
-// que acá cruzamos ambas fuentes para contar pendientes vs. resueltos por
-// persona — "resuelto" es cualquier email cuyo Status ya no sea "Pendiente"
-// (se cambia a mano en Airtable al atenderlo). Si en algún momento cargan
-// la tabla Team, el Role de ahí se suma automáticamente.
-async function listTeam() {
-  const [teamRecords, emailRecords, clientRecords] = await Promise.all([
-    base(T_TEAM).select({}).all(),
-    base(T_EMAILS).select({}).all(),
-    base(T_CLIENTS).select({}).all(),
-  ]);
-
-  const roleByName = {};
-  teamRecords.forEach((r) => {
-    const f = r.fields;
-    const name = pick(f, 'Name', 'Nombre');
-    if (name) roleByName[name] = pick(f, 'Role', 'Rol');
-  });
-
-  const counts = {};
-  emailRecords.forEach((r) => {
-    const colaborador = (r.fields['Colaborador'] || '').toString().trim();
-    if (!colaborador) return;
-    if (!counts[colaborador]) counts[colaborador] = { done: 0, pending: 0 };
-    if ((r.fields['Status'] || '').toString().trim() === 'Pendiente') {
-      counts[colaborador].pending += 1;
-    } else {
-      counts[colaborador].done += 1;
-    }
-  });
-
-  const nombres = new Set();
-  clientRecords.forEach((r) => {
-    const nombre = pick(r.fields, 'Colaborador', 'Categoría', 'Categoria', 'Category');
-    if (nombre) nombres.add(nombre);
-  });
-
-  return Array.from(nombres).map((name) => {
-    const c = counts[name] || { done: 0, pending: 0 };
-    return {
-      id: name,
-      Name: name,
-      Role: roleByName[name] || '',
-      Done: c.done,
-      Pending: c.pending,
     };
   });
 }
@@ -223,7 +169,6 @@ module.exports = {
   upsertMeeting,
   listRecentMeetings,
   listClients,
-  listTeam,
   listRendiciones,
   createExtractoRecord,
   listExtractos,
