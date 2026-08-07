@@ -126,6 +126,9 @@ async function listRendiciones(limit = 30) {
       Diferencia: f['Diferencia'] != null ? f['Diferencia'] : 0,
       Estado: f['Estado'] || '',
       Resumen: f['Resumen IA'] || '',
+      ContadorNombre: f['Contador (Nombre y Apellido)'] || '',
+      Remitente: f['Remitente'] || '',
+      EmailRemitente: f['Email remitente'] || '',
     };
   });
 }
