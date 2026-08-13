@@ -123,6 +123,8 @@ async function listRendiciones(limit = 30) {
       ClienteName: clienteIds.map((id) => clientMap[id]).filter(Boolean).join(', '),
       TipoDocumento: f['Tipo de documento'] || '',
       Monto: f['Monto declarado'] != null ? f['Monto declarado'] : null,
+      MontoUSD: f['Monto USD'] != null ? f['Monto USD'] : null,
+      MontoUSDT: f['Monto USDT'] != null ? f['Monto USDT'] : null,
       Fecha: f['Fecha'] || '',
       HonorarioEsperado: f['Honorario esperado'] != null ? f['Honorario esperado'] : null,
       Diferencia: f['Diferencia'] != null ? f['Diferencia'] : 0,
