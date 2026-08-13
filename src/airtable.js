@@ -185,7 +185,7 @@ async function buscarContactos(query, limit = 50) {
   const qSeguro = escaparFormula(q);
   const formula = `OR(
     FIND(LOWER("${qSeguro}"), LOWER({Nombre})),
-    FIND(LOWER("${qSeguro}"), LOWER({Telefono})),
+    FIND(LOWER("${qSeguro}"), LOWER({Texto})),
     FIND(LOWER("${qSeguro}"), LOWER({Email}))
   )`;
   const records = await base(T_CONTACTOS)
@@ -196,7 +196,7 @@ async function buscarContactos(query, limit = 50) {
     return {
       id: r.id,
       Nombre: f['Nombre'] || '',
-      Telefono: f['Telefono'] || '',
+      Telefono: f['Texto'] || '',
       Email: f['Email'] || '',
       Origen: f['Origen'] || '',
     };
@@ -212,7 +212,7 @@ function mapearContacto(r) {
   return {
     id: r.id,
     Nombre: (r.fields && r.fields['Nombre']) || '',
-    Telefono: (r.fields && r.fields['Telefono']) || '',
+    Telefono: (r.fields && r.fields['Texto']) || '',
     Email: (r.fields && r.fields['Email']) || '',
     Origen: (r.fields && r.fields['Origen']) || '',
   };
@@ -240,13 +240,7 @@ async function listContactosPaginado({ offset, pageSize = 100 } = {}) {
   };
 }
 
-async function debugContactosFields() {
-  const records = await base(T_CONTACTOS).select({ maxRecords: 3 }).firstPage();
-  return records.map((r) => ({ id: r.id, fieldNames: Object.keys(r.fields), fields: r.fields }));
-}
-
 module.exports = {
-  debugContactosFields,
   upsertEmail,
   listRecentEmails,
   upsertMeeting,

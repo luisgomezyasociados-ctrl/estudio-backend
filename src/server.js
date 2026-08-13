@@ -53,17 +53,7 @@ app.get('/api/contactos', checkApiKey, async (req, res) => {
     res.json({ contactos: resultados });
   } catch (err) {
     console.error('error en /api/contactos:', err.message);
-    res.status(500).json({ error: 'internal_error', detail: err.message });
-  }
-});
-
-// TEMPORAL: diagnóstico de nombres reales de campos en Contactos
-app.get('/api/_debug_contactos_fields', checkApiKey, async (req, res) => {
-  try {
-    const raw = await airtable.debugContactosFields();
-    res.json(raw);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'internal_error' });
   }
 });
 
