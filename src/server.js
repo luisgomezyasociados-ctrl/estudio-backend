@@ -57,6 +57,16 @@ app.get('/api/contactos', checkApiKey, async (req, res) => {
   }
 });
 
+// TEMPORAL: diagnóstico de nombres reales de campos en Contactos
+app.get('/api/_debug_contactos_fields', checkApiKey, async (req, res) => {
+  try {
+    const raw = await airtable.debugContactosFields();
+    res.json(raw);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Página de contactos (10.500 en total) para la pestaña "Inactivos" del
 // dashboard. Se pide de a páginas — el frontend guarda el 'nextOffset' que
 // devuelve esto y lo manda de vuelta para pedir la página siguiente.

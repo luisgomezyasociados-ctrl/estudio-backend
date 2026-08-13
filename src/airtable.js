@@ -240,7 +240,13 @@ async function listContactosPaginado({ offset, pageSize = 100 } = {}) {
   };
 }
 
+async function debugContactosFields() {
+  const records = await base(T_CONTACTOS).select({ maxRecords: 3 }).firstPage();
+  return records.map((r) => ({ id: r.id, fieldNames: Object.keys(r.fields), fields: r.fields }));
+}
+
 module.exports = {
+  debugContactosFields,
   upsertEmail,
   listRecentEmails,
   upsertMeeting,
