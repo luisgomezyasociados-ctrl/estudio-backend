@@ -53,7 +53,7 @@ app.get('/api/contactos', checkApiKey, async (req, res) => {
     res.json({ contactos: resultados });
   } catch (err) {
     console.error('error en /api/contactos:', err.message);
-    res.status(500).json({ error: 'internal_error' });
+    res.status(500).json({ error: 'internal_error', detail: err.message });
   }
 });
 
