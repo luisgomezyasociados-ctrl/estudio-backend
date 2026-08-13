@@ -1,4 +1,5 @@
 const Airtable = require('airtable');
+const fetch = require('node-fetch');
 
 const base = new Airtable({ apiKey: process.env.AIRTABLE_API_KEY }).base(
   process.env.AIRTABLE_BASE_ID
@@ -200,6 +201,43 @@ async function buscarContactos(query, limit = 50) {
   });
 }
 
+// Los 10.500 contactos no entran cómodos en una sola respuesta — esto trae
+// de a páginas (usando el 'offset' que devuelve la API de Airtable) para que
+// el dashboard pueda tener botones de "página siguiente/anterior" sin
+// cargar todo de una. Se usa la REST API directo (no el SDK) porque el SDK
+// de Airtable no expone bien la paginación manual por offset.
+function mapearContacto(r) {
+  return {
+    id: r.id,
+    Nombre: (r.fields && r.fields['Nombre']) || '',
+    Telefono: (r.fields && r.fields['Telefono']) || '',
+    Email: (r.fields && r.fields['Email']) || '',
+    Origen: (r.fields && r.fields['Origen']) || '',
+  };
+}
+
+async function listContactosPaginado({ offset, pageSize = 100 } = {}) {
+  const params = new URLSearchParams();
+  params.set('pageSize', String(Math.min(pageSize, 100)));
+  params.set('sort[0][field]', 'Nombre');
+  params.set('sort[0][direction]', 'asc');
+  if (offset) params.set('offset', offset);
+
+  const url = `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${encodeURIComponent(T_CONTACTOS)}?${params.toString()}`;
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${process.env.AIRTABLE_API_KEY}` },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Airtable listContactosPaginado ${res.status}: ${text}`);
+  }
+  const data = await res.json();
+  return {
+    contactos: (data.records || []).map(mapearContacto),
+    nextOffset: data.offset || null,
+  };
+}
+
 module.exports = {
   upsertEmail,
   listRecentEmails,
@@ -210,4 +248,5 @@ module.exports = {
   createExtractoRecord,
   listExtractos,
   buscarContactos,
+  listContactosPaginado,
 };

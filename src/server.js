@@ -57,6 +57,23 @@ app.get('/api/contactos', checkApiKey, async (req, res) => {
   }
 });
 
+// Página de contactos (10.500 en total) para la pestaña "Inactivos" del
+// dashboard. Se pide de a páginas — el frontend guarda el 'nextOffset' que
+// devuelve esto y lo manda de vuelta para pedir la página siguiente.
+app.get('/api/contactos-pagina', checkApiKey, async (req, res) => {
+  try {
+    const { offset, pageSize } = req.query;
+    const resultado = await airtable.listContactosPaginado({
+      offset: offset || undefined,
+      pageSize: pageSize ? parseInt(pageSize, 10) : 100,
+    });
+    res.json(resultado);
+  } catch (err) {
+    console.error('error en /api/contactos-pagina:', err.message);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
 // Luis sube un extracto bancario/de billetera desde el dashboard.
 // multipart/form-data: campo "file" (el archivo), "titular" y "notas" opcionales.
 app.post('/api/upload-extracto', checkApiKey, upload.single('file'), async (req, res) => {
