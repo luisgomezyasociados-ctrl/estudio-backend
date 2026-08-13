@@ -9,6 +9,7 @@ const T_MEETINGS = process.env.AIRTABLE_TABLE_MEETINGS || 'Meetings';
 const T_CLIENTS = process.env.AIRTABLE_TABLE_CLIENTS || 'GO Estudio Clientes Consolidados';
 const T_RENDICIONES = process.env.AIRTABLE_TABLE_RENDICIONES || 'Rendiciones';
 const T_EXTRACTOS = process.env.AIRTABLE_TABLE_EXTRACTOS || 'Extractos';
+const T_CONTACTOS = process.env.AIRTABLE_TABLE_CONTACTOS || 'Contactos';
 
 // ---- helpers genéricos ----
 async function findByField(table, field, value) {
@@ -166,6 +167,39 @@ async function listExtractos(limit = 20) {
   });
 }
 
+// ---- Contactos (los ~10.500 contactos del teléfono/CRM de Luis, importados
+// aparte de Clientes porque son leads/contactos sueltos, no clientes reales
+// del estudio). Son demasiados para traerlos todos en /api/dashboard, así
+// que se buscan bajo demanda desde el dashboard (el usuario tiene que
+// escribir algo para que traiga resultados).
+function escaparFormula(texto) {
+  return (texto || '').replace(/"/g, '\\"');
+}
+
+async function buscarContactos(query, limit = 50) {
+  const q = (query || '').trim();
+  if (!q) return [];
+  const qSeguro = escaparFormula(q);
+  const formula = `OR(
+    FIND(LOWER("${qSeguro}"), LOWER({Nombre})),
+    FIND(LOWER("${qSeguro}"), LOWER({Telefono})),
+    FIND(LOWER("${qSeguro}"), LOWER({Email}))
+  )`;
+  const records = await base(T_CONTACTOS)
+    .select({ filterByFormula: formula, maxRecords: limit })
+    .firstPage();
+  return records.map((r) => {
+    const f = r.fields;
+    return {
+      id: r.id,
+      Nombre: f['Nombre'] || '',
+      Telefono: f['Telefono'] || '',
+      Email: f['Email'] || '',
+      Origen: f['Origen'] || '',
+    };
+  });
+}
+
 module.exports = {
   upsertEmail,
   listRecentEmails,
@@ -175,4 +209,5 @@ module.exports = {
   listRendiciones,
   createExtractoRecord,
   listExtractos,
+  buscarContactos,
 };

@@ -45,6 +45,18 @@ app.get('/api/dashboard', checkApiKey, async (req, res) => {
   }
 });
 
+// Búsqueda de contactos (son ~10.500, no se traen todos de una — el
+// dashboard solo pide acá cuando el usuario escribe algo en el buscador).
+app.get('/api/contactos', checkApiKey, async (req, res) => {
+  try {
+    const resultados = await airtable.buscarContactos(req.query.q, 50);
+    res.json({ contactos: resultados });
+  } catch (err) {
+    console.error('error en /api/contactos:', err.message);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
 // Luis sube un extracto bancario/de billetera desde el dashboard.
 // multipart/form-data: campo "file" (el archivo), "titular" y "notas" opcionales.
 app.post('/api/upload-extracto', checkApiKey, upload.single('file'), async (req, res) => {
