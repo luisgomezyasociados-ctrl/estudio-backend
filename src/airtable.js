@@ -240,47 +240,7 @@ async function listContactosPaginado({ offset, pageSize = 100 } = {}) {
   };
 }
 
-// Mantenimiento puntual: fusiona/limpia duplicados de la tabla Contactos.
-// Recibe updates (completar teléfono/email del registro que se conserva) y
-// deletes (ids de los registros sobrantes) ya calculados de antemano.
-function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
-
-async function aplicarLimpiezaContactos({ updates = [], deletes = [] }) {
-  const headers = {
-    Authorization: `Bearer ${process.env.AIRTABLE_API_KEY}`,
-    'Content-Type': 'application/json',
-  };
-  const baseUrl = `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${encodeURIComponent(T_CONTACTOS)}`;
-
-  let actualizados = 0;
-  for (let i = 0; i < updates.length; i += 10) {
-    const lote = updates.slice(i, i + 10);
-    const res = await fetch(baseUrl, {
-      method: 'PATCH',
-      headers,
-      body: JSON.stringify({ records: lote.map((u) => ({ id: u.id, fields: u.fields })) }),
-    });
-    if (!res.ok) throw new Error(`Error actualizando lote: ${res.status} ${await res.text()}`);
-    actualizados += lote.length;
-    await sleep(250);
-  }
-
-  let borrados = 0;
-  for (let i = 0; i < deletes.length; i += 10) {
-    const lote = deletes.slice(i, i + 10);
-    const params = new URLSearchParams();
-    lote.forEach((id) => params.append('records[]', id));
-    const res = await fetch(`${baseUrl}?${params.toString()}`, { method: 'DELETE', headers });
-    if (!res.ok) throw new Error(`Error borrando lote: ${res.status} ${await res.text()}`);
-    borrados += lote.length;
-    await sleep(250);
-  }
-
-  return { actualizados, borrados };
-}
-
 module.exports = {
-  aplicarLimpiezaContactos,
   upsertEmail,
   listRecentEmails,
   upsertMeeting,

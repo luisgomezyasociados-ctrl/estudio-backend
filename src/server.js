@@ -57,18 +57,6 @@ app.get('/api/contactos', checkApiKey, async (req, res) => {
   }
 });
 
-// TEMPORAL: limpieza puntual de duplicados en Contactos (se ejecuta una vez y se retira)
-app.post('/api/_mantenimiento_limpiar_contactos', checkApiKey, async (req, res) => {
-  try {
-    const { updates, deletes } = req.body;
-    const resultado = await airtable.aplicarLimpiezaContactos({ updates, deletes });
-    res.json(resultado);
-  } catch (err) {
-    console.error('error en limpieza de contactos:', err.message);
-    res.status(500).json({ error: 'internal_error', detail: err.message });
-  }
-});
-
 // Página de contactos (10.500 en total) para la pestaña "Inactivos" del
 // dashboard. Se pide de a páginas — el frontend guarda el 'nextOffset' que
 // devuelve esto y lo manda de vuelta para pedir la página siguiente.
