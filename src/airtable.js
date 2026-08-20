@@ -240,7 +240,27 @@ async function listContactosPaginado({ offset, pageSize = 100 } = {}) {
   };
 }
 
+// Mantenimiento puntual: borra registros sueltos de una tabla por id (se usa
+// una vez para limpiar duplicados y después se retira del server.js).
+async function borrarRegistros(table, ids) {
+  const headers = { Authorization: `Bearer ${process.env.AIRTABLE_API_KEY}` };
+  const baseUrl = `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${encodeURIComponent(table)}`;
+  let borrados = 0;
+  for (let i = 0; i < ids.length; i += 10) {
+    const lote = ids.slice(i, i + 10);
+    const params = new URLSearchParams();
+    lote.forEach((id) => params.append('records[]', id));
+    const res = await fetch(`${baseUrl}?${params.toString()}`, { method: 'DELETE', headers });
+    if (!res.ok) throw new Error(`Error borrando lote: ${res.status} ${await res.text()}`);
+    borrados += lote.length;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  return { borrados };
+}
+
 module.exports = {
+  borrarRegistros,
+  T_EMAILS,
   upsertEmail,
   listRecentEmails,
   upsertMeeting,

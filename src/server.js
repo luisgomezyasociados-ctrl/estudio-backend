@@ -26,6 +26,18 @@ function checkApiKey(req, res, next) {
 // ── Endpoints ─────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ ok: true }));
 
+// TEMPORAL: limpieza puntual de emails duplicados (se ejecuta una vez y se retira)
+app.post('/api/_mantenimiento_borrar_emails', checkApiKey, async (req, res) => {
+  try {
+    const { ids } = req.body;
+    const resultado = await airtable.borrarRegistros(airtable.T_EMAILS, ids);
+    res.json(resultado);
+  } catch (err) {
+    console.error('error en limpieza de emails:', err.message);
+    res.status(500).json({ error: 'internal_error', detail: err.message });
+  }
+});
+
 // Lo que consume el dashboard.html. El triage de emails y las reuniones de
 // Fathom los procesan los workflows de n8n, que escriben directo a Airtable;
 // acá solo se lee lo que ya está en las tablas.
