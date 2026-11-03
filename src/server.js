@@ -5,6 +5,7 @@ const multer = require('multer');
 
 const airtable = require('./airtable');
 const { uploadAttachment } = require('./extractos');
+const { proximosDias } = require('./calendario');
 
 const app = express();
 app.use(cors());
@@ -47,6 +48,15 @@ app.get('/api/dashboard', checkApiKey, async (req, res) => {
 
 // Búsqueda de contactos (son ~10.500, no se traen todos de una — el
 // dashboard solo pide acá cuando el usuario escribe algo en el buscador).
+app.get('/api/calendario', checkApiKey, async (req, res) => {
+  try {
+    res.json({ dias: await proximosDias(3) });
+  } catch (err) {
+    console.error('error en /api/calendario:', err.message);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
 app.get('/api/contactos', checkApiKey, async (req, res) => {
   try {
     const resultados = await airtable.buscarContactos(req.query.q, 50);
