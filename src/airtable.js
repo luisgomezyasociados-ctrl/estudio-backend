@@ -199,6 +199,7 @@ async function buscarContactos(query, limit = 50) {
       Telefono: f['Texto'] || '',
       Email: f['Email'] || '',
       Origen: f['Origen'] || '',
+      Contactado: f['Contactado el'] || '',
     };
   });
 }
@@ -215,6 +216,7 @@ function mapearContacto(r) {
     Telefono: (r.fields && r.fields['Texto']) || '',
     Email: (r.fields && r.fields['Email']) || '',
     Origen: (r.fields && r.fields['Origen']) || '',
+    Contactado: (r.fields && r.fields['Contactado el']) || '',
   };
 }
 
@@ -240,7 +242,20 @@ async function listContactosPaginado({ offset, pageSize = 100 } = {}) {
   };
 }
 
+async function marcarContactado(id, contactado) {
+  const fecha = contactado ? new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }) : null;
+  const url = `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${encodeURIComponent(T_CONTACTOS)}/${id}`;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${process.env.AIRTABLE_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: { 'Contactado el': fecha } }),
+  });
+  if (!res.ok) throw new Error(`Airtable marcarContactado ${res.status}: ${await res.text()}`);
+  return { id, Contactado: fecha || '' };
+}
+
 module.exports = {
+  marcarContactado,
   upsertEmail,
   listRecentEmails,
   upsertMeeting,

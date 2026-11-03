@@ -33,7 +33,7 @@ app.get('/health', (req, res) => res.json({ ok: true }));
 app.get('/api/dashboard', checkApiKey, async (req, res) => {
   try {
     const [emails, meetings, clients, rendiciones, extractos] = await Promise.all([
-      airtable.listRecentEmails(20),
+      airtable.listRecentEmails(100),
       airtable.listRecentMeetings(20),
       airtable.listClients(),
       airtable.listRendiciones(30),
@@ -53,6 +53,18 @@ app.get('/api/calendario', checkApiKey, async (req, res) => {
     res.json({ dias: await proximosDias(3) });
   } catch (err) {
     console.error('error en /api/calendario:', err.message);
+    res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+app.post('/api/contactos/:id/contactado', checkApiKey, async (req, res) => {
+  if (!/^rec[A-Za-z0-9]{14}$/.test(req.params.id) || typeof req.body?.contactado !== 'boolean') {
+    return res.status(400).json({ error: 'invalid_request' });
+  }
+  try {
+    res.json(await airtable.marcarContactado(req.params.id, req.body.contactado));
+  } catch (err) {
+    console.error('error en /api/contactos/:id/contactado:', err.message);
     res.status(500).json({ error: 'internal_error' });
   }
 });
